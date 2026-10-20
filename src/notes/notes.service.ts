@@ -1,45 +1,34 @@
-import { Injectable } from '@nestjs/common';
-import { Note } from './note.entity';
-import { randomUUID } from 'crypto';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { Note } from '../generated/prisma/client';
 
 @Injectable()
 export class NotesService {
-    private notes: Note[] = []; // in-memory db
+  constructor(private readonly prisma: PrismaService) {}
 
-    findAll(): Note[] {
-        return this.notes;
-    }
+  findAll(): Promise<Note[]> {
+    return this.prisma.note.findMany({ orderBy: { createdAt: 'desc' } });
+  }
 
-    findOne(id: string): Note {
-        const note = this.notes.find(n => n.id === id);
-        if (!note) {
-            throw new Error(`Note with id ${id} not found`);
-        }
-        return note;
-    }
+  async findOne(id: number): Promise<Note> {
+    const note = await this.prisma.note.findUnique({ where: { id } });
+    if (!note) throw new NotFoundException(`Note with id ${id} not found`);
+    return note;
+  }
 
-    create(dto: CreateNoteDto): Note {
-        const now = new Date();
-        const note: Note = {
-            id: randomUUID(),
-            ...dto,
-            createdAt: now,
-            updatedAt: now
-        }
-        this.notes.push(note);
-        return note;
-    }
+  create(dto: CreateNoteDto): Promise<Note> {
+    return this.prisma.note.create({ data: dto });
+  }
 
-    update(id: string, dto: UpdateNoteDto): Note {
-        const note = this.findOne(id);
-        Object.assign(note, dto, { updatedAt: new Date() });
-        return note;
-    }
+  async update(id: number, dto: UpdateNoteDto): Promise<Note> {
+    await this.findOne(id);
+    return this.prisma.note.update({ where: { id }, data: dto });
+  }
 
-    remove(id: string): void {
-        const note = this.findOne(id);
-        this.notes = this.notes.filter(n => n.id !== note.id);
-    }
+  async remove(id: number): Promise<Note> {
+    await this.findOne(id);
+    return this.prisma.note.delete({ where: { id } });
+  }
 }
