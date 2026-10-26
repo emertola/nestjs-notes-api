@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { LoggerModule } from 'nestjs-pino';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -20,6 +21,22 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     HealthModule,
     PrismaModule,
     NotesModule,
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+        transport:
+          process.env.NODE_ENV === 'production'
+            ? undefined
+            : {
+                target: 'pino-pretty',
+                options: {
+                  colorize: true,
+                  singleLine: true,
+                },
+              },
+        redact: ['req.headers.authorization', 'req.headers.cookie'],
+      },
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],
